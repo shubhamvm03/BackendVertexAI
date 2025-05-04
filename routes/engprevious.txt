@@ -1,0 +1,42 @@
+const express = require('express');
+const mongoose = require('mongoose');
+const UserPoints = require('../models/UserPoints'); // Adjust path as needed
+
+const router = express.Router();
+
+// API route to handle point increment
+router.post('/feed/engage/:feedId', async (req, res) => {
+  const userId = req.user.id; // Ensure authentication middleware sets this
+  const feedId = req.params.feedId;
+
+  try {
+    let userPoints = await UserPoints.findOne({ userId });
+
+    if (!userPoints) {
+      userPoints = new UserPoints({ userId });
+    }
+
+    const alreadyEngaged = userPoints.engagementHistory.some(
+      (engagement) => engagement.feedId.toString() === feedId
+    );
+
+    if (alreadyEngaged) {
+      return res.status(400).json({ message: 'User has already engaged with this feed' });
+    }
+
+    userPoints.points += 1;
+    userPoints.engagementHistory.push({
+      feedId,
+      pointsEarned: 1,
+    });
+
+    await userPoints.save();
+
+    res.status(200).json({ message: 'Points updated successfully', points: userPoints.points });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+module.exports = router;
